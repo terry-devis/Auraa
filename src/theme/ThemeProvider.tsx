@@ -1,5 +1,10 @@
-import React, { createContext, useContext, useMemo } from 'react';
-import { useColorScheme } from 'react-native';
+import React, { createContext, useContext, useEffect, useMemo } from 'react';
+import { Platform, useColorScheme } from 'react-native';
+import {
+  getAppIconName,
+  setAlternateAppIcon,
+  supportsAlternateIcons,
+} from 'expo-alternate-app-icons';
 import {
   AuraTheme,
   AuraThemeName,
@@ -45,6 +50,21 @@ export function AuraThemeProvider({
   }, [preference, systemScheme]);
 
   const theme = resolvedName === 'serene' ? sereneGlowTheme : midnightGlowTheme;
+
+  // Sync home-screen launcher icon:
+  // Pink (default / null) for 'system' or 'serene'; Dark ('MidnightIcon') when user switches to 'midnight'
+  useEffect(() => {
+    if (Platform.OS === 'web' || !supportsAlternateIcons) return;
+    const targetIcon = preference === 'midnight' ? 'MidnightIcon' : null;
+    try {
+      const current = getAppIconName();
+      if (current !== targetIcon) {
+        setAlternateAppIcon(targetIcon).catch(() => {});
+      }
+    } catch {
+      // Ignore in Expo Go where native alternate icon module is not linked
+    }
+  }, [preference]);
 
   const value = useMemo<ThemeContextValue>(
     () => ({

@@ -42,7 +42,20 @@
       "expo-sqlite",
       "expo-sharing",
       "expo-audio",
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-alternate-app-icons",
+        [
+          {
+            "name": "MidnightIcon",
+            "ios": "./assets/images/icon-dark-full.png",
+            "android": {
+              "foregroundImage": "./assets/images/android-icon-dark-foreground.png",
+              "backgroundColor": "#13131A"
+            }
+          }
+        ]
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
