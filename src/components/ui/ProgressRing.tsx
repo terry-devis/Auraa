@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import Animated, {
   useAnimatedProps,
@@ -31,7 +31,7 @@ export function ProgressRing({
   const animatedProgress = useSharedValue(clamped);
 
   useEffect(() => {
-    animatedProgress.value = withTiming(clamped, { duration: 450 });
+    animatedProgress.set(withTiming(clamped, { duration: 450 }));
   }, [clamped, animatedProgress]);
 
   const animatedProps = useAnimatedProps(() => ({
@@ -59,19 +59,35 @@ export function ProgressRing({
           strokeWidth={strokeWidth}
           fill="none"
         />
-        <AnimatedCircle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke="url(#auraRingGrad)"
-          strokeWidth={strokeWidth}
-          strokeDasharray={circumference}
-          animatedProps={animatedProps}
-          strokeLinecap="round"
-          fill="none"
-          rotation="-90"
-          origin={`${size / 2}, ${size / 2}`}
-        />
+        {Platform.OS === 'web' ? (
+          <Circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            stroke="url(#auraRingGrad)"
+            strokeWidth={strokeWidth}
+            strokeDasharray={circumference}
+            strokeDashoffset={circumference * (1 - clamped)}
+            strokeLinecap="round"
+            fill="none"
+            rotation="-90"
+            origin={`${size / 2}, ${size / 2}`}
+          />
+        ) : (
+          <AnimatedCircle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            stroke="url(#auraRingGrad)"
+            strokeWidth={strokeWidth}
+            strokeDasharray={circumference}
+            animatedProps={animatedProps}
+            strokeLinecap="round"
+            fill="none"
+            rotation="-90"
+            origin={`${size / 2}, ${size / 2}`}
+          />
+        )}
       </Svg>
       <View style={styles.centerContent}>{children}</View>
     </View>

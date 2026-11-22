@@ -24,6 +24,7 @@ async function ensureAndroidChannel(): Promise<void> {
 }
 
 export async function requestNotificationPermission(): Promise<boolean> {
+  if (Platform.OS === 'web') return false;
   const { status: existing } = await Notifications.getPermissionsAsync();
   if (existing === 'granted') return true;
   const { status } = await Notifications.requestPermissionsAsync();
@@ -34,6 +35,7 @@ export async function scheduleDailyAuraReminder(
   hour: number,
   minute: number
 ): Promise<boolean> {
+  if (Platform.OS === 'web') return false;
   const granted = await requestNotificationPermission();
   if (!granted) return false;
 
@@ -59,12 +61,14 @@ export async function scheduleDailyAuraReminder(
 }
 
 export async function cancelDailyAuraReminder(): Promise<void> {
+  if (Platform.OS === 'web') return;
   await Notifications.cancelScheduledNotificationAsync(DAILY_REMINDER_ID).catch(
     () => {}
   );
 }
 
 export async function scheduleHabitReminder(habit: Habit): Promise<boolean> {
+  if (Platform.OS === 'web') return false;
   const identifier = `habit_${habit.id}`;
   await Notifications.cancelScheduledNotificationAsync(identifier).catch(() => {});
 
@@ -99,6 +103,7 @@ export async function scheduleHabitReminder(habit: Habit): Promise<boolean> {
 }
 
 export async function cancelHabitReminder(habitId: string): Promise<void> {
+  if (Platform.OS === 'web') return;
   await Notifications.cancelScheduledNotificationAsync(`habit_${habitId}`).catch(
     () => {}
   );
