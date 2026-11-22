@@ -18,6 +18,7 @@ import { AuraCard } from '@/components/ui/AuraCard';
 import { AuraChip } from '@/components/ui/AuraChip';
 import { AuraButton } from '@/components/ui/AuraButton';
 import { AuraTimePickerModal } from '@/components/ui/AuraTimePickerModal';
+import { AuraAppIcon } from '@/components/ui/AuraAppIcon';
 import { AvatarView } from '@/components/profile/AvatarView';
 import { AvatarPickerModal } from '@/components/profile/AvatarPickerModal';
 import { playAuraChime } from '@/utils/audio';
@@ -162,10 +163,13 @@ export default function ProfileScreen() {
 
         {/* Theme Mode */}
         <AuraCard>
-          <Text style={[styles.sectionLabel, { color: theme.colors.onSurfaceVariant }]}>
-            AURA THEME
-          </Text>
-          <View style={styles.chipWrap}>
+          <View style={styles.themeHeaderRow}>
+            <Text style={[styles.sectionLabel, { color: theme.colors.onSurfaceVariant, marginBottom: 0 }]}>
+              AURA THEME
+            </Text>
+            <AuraAppIcon size={26} />
+          </View>
+          <View style={[styles.chipWrap, { marginTop: 10 }]}>
             {THEMES.map((t) => (
               <AuraChip
                 key={t.id}
@@ -299,6 +303,11 @@ const styles = StyleSheet.create({
   studioTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   studioTitle: { fontFamily: fontFamilies.bold, fontSize: 17 },
   studioSub: { fontFamily: fontFamilies.regular, fontSize: 13, lineHeight: 19 },
+  themeHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   sectionLabel: {
     fontFamily: fontFamilies.semibold,
     fontSize: 11,
