@@ -11,7 +11,11 @@ import {
   updateUserProfileDb,
 } from '@/db/database';
 import { Habit, HabitLog, UserProfile } from '@/db/schema';
-import { cancelHabitReminder, scheduleHabitReminder } from '@/utils/notifications';
+import {
+  cancelHabitReminder,
+  scheduleHabitReminder,
+  syncTonightStreakSaverReminder,
+} from '@/utils/notifications';
 
 interface AuraState {
   isReady: boolean;
@@ -45,6 +49,7 @@ export const useAuraStore = create<AuraState>((set, get) => ({
       fetchHabitLogs(),
     ]);
     set({ isReady: true, profile, habits, logs });
+    syncTonightStreakSaverReminder(habits, logs).catch(() => {});
   },
 
   updateProfile: async (patch) => {
@@ -66,7 +71,9 @@ export const useAuraStore = create<AuraState>((set, get) => ({
     };
     await insertHabitDb(newHabit);
     await scheduleHabitReminder(newHabit);
-    set({ habits: [...currentHabits, newHabit] });
+    const nextHabits = [...currentHabits, newHabit];
+    set({ habits: nextHabits });
+    syncTonightStreakSaverReminder(nextHabits, get().logs).catch(() => {});
   },
 
   updateHabit: async (id, patch) => {
@@ -79,34 +86,35 @@ export const useAuraStore = create<AuraState>((set, get) => ({
       await scheduleHabitReminder(updated);
     }
     set({ habits: nextHabits });
+    syncTonightStreakSaverReminder(nextHabits, get().logs).catch(() => {});
   },
 
   archiveHabit: async (id) => {
     await archiveHabitDb(id);
     await cancelHabitReminder(id);
-    set({
-      habits: get().habits.filter((h) => h.id !== id),
-    });
+    const nextHabits = get().habits.filter((h) => h.id !== id);
+    set({ habits: nextHabits });
+    syncTonightStreakSaverReminder(nextHabits, get().logs).catch(() => {});
   },
 
   toggleHabitForDate: async (habitId, dateStr) => {
     const completed = await toggleHabitLogDb(habitId, dateStr);
     const currentLogs = get().logs;
-    if (completed) {
-      const newLog: HabitLog = {
-        id: `${habitId}_${dateStr}`,
-        habitId,
-        completedDate: dateStr,
-        completedAt: new Date().toISOString(),
-      };
-      set({ logs: [...currentLogs, newLog] });
-    } else {
-      set({
-        logs: currentLogs.filter(
+    const nextLogs = completed
+      ? [
+          ...currentLogs,
+          {
+            id: `${habitId}_${dateStr}`,
+            habitId,
+            completedDate: dateStr,
+            completedAt: new Date().toISOString(),
+          },
+        ]
+      : currentLogs.filter(
           (l) => !(l.habitId === habitId && l.completedDate === dateStr)
-        ),
-      });
-    }
+        );
+    set({ logs: nextLogs });
+    syncTonightStreakSaverReminder(get().habits, nextLogs).catch(() => {});
     return completed;
   },
 }));
