@@ -4,19 +4,22 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Trash2, X } from 'lucide-react-native';
+import { Bell, Clock, Trash2, X } from 'lucide-react-native';
 import { useAuraTheme } from '@/theme/ThemeProvider';
 import { fontFamilies } from '@/theme/tokens';
 import { useAuraStore } from '@/store/useAuraStore';
 import { HabitCategory, TimeOfDay } from '@/db/schema';
 import { AuraButton } from '@/components/ui/AuraButton';
 import { AuraChip } from '@/components/ui/AuraChip';
+import { AuraTimePickerModal } from '@/components/ui/AuraTimePickerModal';
+import { formatTime12h } from '@/utils/notifications';
 
 const EMOJI_OPTIONS = ['✨', '🧘‍♀️', '💧', '📖', '🌿', '🏃‍♀️', '🌙', '🍵', '🎧', '📝'];
 const CATEGORIES: { id: HabitCategory; label: string }[] = [
@@ -59,6 +62,13 @@ export default function AddHabitModal() {
   const [accentColor, setAccentColor] = useState(
     existingHabit?.accentColor ?? ACCENT_COLORS[0]
   );
+  const [reminderEnabled, setReminderEnabled] = useState(
+    Boolean(existingHabit?.reminderTime)
+  );
+  const [reminderTime, setReminderTime] = useState(
+    existingHabit?.reminderTime ?? '08:30'
+  );
+  const [timePickerOpen, setTimePickerOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const toggleDay = (dayIdx: number) => {
@@ -75,6 +85,7 @@ export default function AddHabitModal() {
     const trimmed = title.trim();
     if (!trimmed) return;
     setSaving(true);
+    const finalReminder = reminderEnabled ? reminderTime : null;
     try {
       if (existingHabit) {
         await updateHabit(existingHabit.id, {
@@ -83,6 +94,7 @@ export default function AddHabitModal() {
           category,
           timeOfDay,
           frequencyDays,
+          reminderTime: finalReminder,
           accentColor,
         });
       } else {
@@ -92,7 +104,7 @@ export default function AddHabitModal() {
           category,
           timeOfDay,
           frequencyDays,
-          reminderTime: null,
+          reminderTime: finalReminder,
           accentColor,
         });
       }
@@ -283,6 +295,60 @@ export default function AddHabitModal() {
           </View>
         </View>
 
+        <View style={styles.section}>
+          <Text style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>
+            GENTLE REMINDER
+          </Text>
+          <View
+            style={[
+              styles.reminderCard,
+              {
+                backgroundColor: theme.colors.surfaceContainer,
+                borderColor: theme.colors.cardBorder,
+                borderRadius: theme.radius.card,
+              },
+            ]}
+          >
+            <View style={styles.reminderRow}>
+              <View style={styles.reminderLeft}>
+                <Bell size={18} color={theme.colors.primary} />
+                <Text style={[styles.reminderText, { color: theme.colors.onSurface }]}>
+                  Notify me daily
+                </Text>
+              </View>
+              <Switch
+                value={reminderEnabled}
+                onValueChange={setReminderEnabled}
+              />
+            </View>
+
+            {reminderEnabled && (
+              <Pressable
+                onPress={() => setTimePickerOpen(true)}
+                style={[
+                  styles.timeBtn,
+                  { backgroundColor: theme.colors.surfaceLow },
+                ]}
+              >
+                <View style={styles.reminderLeft}>
+                  <Clock size={16} color={theme.colors.secondary} />
+                  <Text
+                    style={[
+                      styles.timeLabel,
+                      { color: theme.colors.onSurfaceVariant },
+                    ]}
+                  >
+                    Reminder Time
+                  </Text>
+                </View>
+                <Text style={[styles.timeValue, { color: theme.colors.primary }]}>
+                  {formatTime12h(reminderTime)}
+                </Text>
+              </Pressable>
+            )}
+          </View>
+        </View>
+
         <AuraButton
           label={existingHabit ? 'Save Changes' : 'Create Ritual'}
           onPress={handleSave}
@@ -291,6 +357,14 @@ export default function AddHabitModal() {
           style={styles.saveBtn}
         />
       </ScrollView>
+
+      <AuraTimePickerModal
+        visible={timePickerOpen}
+        initialTime={reminderTime}
+        title="Ritual Reminder Time"
+        onConfirm={setReminderTime}
+        onClose={() => setTimePickerOpen(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -381,6 +455,41 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 999,
+  },
+  reminderCard: {
+    borderWidth: 1,
+    padding: 14,
+    gap: 12,
+  },
+  reminderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  reminderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  reminderText: {
+    fontFamily: fontFamilies.medium,
+    fontSize: 15,
+  },
+  timeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 14,
+  },
+  timeLabel: {
+    fontFamily: fontFamilies.medium,
+    fontSize: 13,
+  },
+  timeValue: {
+    fontFamily: fontFamilies.bold,
+    fontSize: 15,
   },
   saveBtn: {
     marginTop: 8,

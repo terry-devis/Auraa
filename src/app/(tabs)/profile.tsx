@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { Camera, Share2, Sparkles } from 'lucide-react-native';
+import { Bell, Camera, Clock, Share2, Sparkles } from 'lucide-react-native';
 import { useAuraTheme } from '@/theme/ThemeProvider';
 import { ThemePreference, fontFamilies } from '@/theme/tokens';
 import { useAuraStore } from '@/store/useAuraStore';
@@ -17,9 +17,15 @@ import { ChimeType } from '@/db/schema';
 import { AuraCard } from '@/components/ui/AuraCard';
 import { AuraChip } from '@/components/ui/AuraChip';
 import { AuraButton } from '@/components/ui/AuraButton';
+import { AuraTimePickerModal } from '@/components/ui/AuraTimePickerModal';
 import { AvatarView } from '@/components/profile/AvatarView';
 import { AvatarPickerModal } from '@/components/profile/AvatarPickerModal';
 import { playAuraChime } from '@/utils/audio';
+import {
+  cancelDailyAuraReminder,
+  formatTime12h,
+  scheduleDailyAuraReminder,
+} from '@/utils/notifications';
 import { calculateHabitStreak } from '@/utils/streak';
 
 const THEMES: { id: ThemePreference; label: string }[] = [
@@ -38,6 +44,7 @@ export default function ProfileScreen() {
   const { theme, preference, setPreference } = useAuraTheme();
   const { profile, habits, logs, updateProfile } = useAuraStore();
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [timePickerOpen, setTimePickerOpen] = useState(false);
 
   const bestStreak = useMemo(() => {
     let max = 0;
@@ -51,6 +58,27 @@ export default function ProfileScreen() {
   const handleChimeChange = (chime: ChimeType) => {
     updateProfile({ selectedChime: chime });
     playAuraChime(chime, true);
+  };
+
+  const handleToggleDailyReminder = async (enabled: boolean) => {
+    await updateProfile({ dailyReminderEnabled: enabled });
+    if (enabled) {
+      const [h, m] = (profile?.dailyReminderTime ?? '20:00')
+        .split(':')
+        .map(Number);
+      await scheduleDailyAuraReminder(h, m);
+    } else {
+      await cancelDailyAuraReminder();
+    }
+  };
+
+  const handleConfirmDailyTime = async (time24: string) => {
+    await updateProfile({
+      dailyReminderEnabled: true,
+      dailyReminderTime: time24,
+    });
+    const [h, m] = time24.split(':').map(Number);
+    await scheduleDailyAuraReminder(h, m);
   };
 
   return (
@@ -188,6 +216,38 @@ export default function ProfileScreen() {
               onValueChange={(v) => updateProfile({ hapticsEnabled: v })}
             />
           </View>
+
+          <View style={styles.toggleRow}>
+            <View style={styles.bellRow}>
+              <Bell size={16} color={theme.colors.primary} />
+              <Text style={[styles.toggleLabel, { color: theme.colors.onSurface }]}>
+                Daily Check-In Reminder
+              </Text>
+            </View>
+            <Switch
+              value={profile?.dailyReminderEnabled ?? true}
+              onValueChange={handleToggleDailyReminder}
+            />
+          </View>
+
+          {(profile?.dailyReminderEnabled ?? true) && (
+            <Pressable
+              onPress={() => setTimePickerOpen(true)}
+              style={[styles.timeBtn, { backgroundColor: theme.colors.surfaceLow }]}
+            >
+              <View style={styles.bellRow}>
+                <Clock size={16} color={theme.colors.secondary} />
+                <Text
+                  style={[styles.timeLabel, { color: theme.colors.onSurfaceVariant }]}
+                >
+                  Reminder Time
+                </Text>
+              </View>
+              <Text style={[styles.timeValue, { color: theme.colors.primary }]}>
+                {formatTime12h(profile?.dailyReminderTime ?? '20:00')}
+              </Text>
+            </Pressable>
+          )}
         </AuraCard>
       </ScrollView>
 
@@ -199,6 +259,14 @@ export default function ProfileScreen() {
           updateProfile({ avatarType, avatarValue })
         }
         onClose={() => setPickerOpen(false)}
+      />
+
+      <AuraTimePickerModal
+        visible={timePickerOpen}
+        initialTime={profile?.dailyReminderTime ?? '20:00'}
+        title="Daily Check-In Time"
+        onConfirm={handleConfirmDailyTime}
+        onClose={() => setTimePickerOpen(false)}
       />
     </SafeAreaView>
   );
@@ -250,5 +318,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 6,
   },
+  bellRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   toggleLabel: { fontFamily: fontFamilies.medium, fontSize: 15 },
+  timeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 14,
+    marginTop: 8,
+  },
+  timeLabel: { fontFamily: fontFamilies.medium, fontSize: 13 },
+  timeValue: { fontFamily: fontFamilies.bold, fontSize: 15 },
 });

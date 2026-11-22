@@ -2,26 +2,25 @@ import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { Bell, ChevronLeft, Volume2 } from 'lucide-react-native';
+import { Bell, ChevronLeft, Clock, Volume2 } from 'lucide-react-native';
 import { useAuraTheme } from '@/theme/ThemeProvider';
 import { fontFamilies } from '@/theme/tokens';
 import { useAuraStore } from '@/store/useAuraStore';
 import { ChimeType } from '@/db/schema';
 import { AuraButton } from '@/components/ui/AuraButton';
 import { AuraCard } from '@/components/ui/AuraCard';
+import { AuraTimePickerModal } from '@/components/ui/AuraTimePickerModal';
 import { playAuraChime } from '@/utils/audio';
-import { scheduleDailyAuraReminder } from '@/utils/notifications';
+import {
+  cancelDailyAuraReminder,
+  formatTime12h,
+  scheduleDailyAuraReminder,
+} from '@/utils/notifications';
 
 const CHIMES: { id: ChimeType; label: string; desc: string }[] = [
   { id: 'celestial', label: 'Celestial Chime', desc: 'Soft harmonic bell chord' },
   { id: 'woodblock', label: 'Woodblock Pop', desc: 'Warm organic wooden tap' },
   { id: 'soft_bell', label: 'Soft Bell', desc: 'Gentle sanctuary resonance' },
-];
-
-const REMINDER_TIMES = [
-  { label: 'Morning (8:30 AM)', hour: 8, minute: 30 },
-  { label: 'Midday (1:00 PM)', hour: 13, minute: 0 },
-  { label: 'Evening (8:30 PM)', hour: 20, minute: 30 },
 ];
 
 export default function RemindersSoundscapesScreen() {
@@ -32,7 +31,8 @@ export default function RemindersSoundscapesScreen() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [hapticsEnabled, setHapticsEnabled] = useState(true);
   const [reminderEnabled, setReminderEnabled] = useState(true);
-  const [selectedTimeIdx, setSelectedTimeIdx] = useState(0);
+  const [reminderTime, setReminderTime] = useState('20:00');
+  const [timePickerOpen, setTimePickerOpen] = useState(false);
   const [finishing, setFinishing] = useState(false);
 
   const handleSelectChime = (chime: ChimeType) => {
@@ -44,13 +44,17 @@ export default function RemindersSoundscapesScreen() {
     setFinishing(true);
     try {
       if (reminderEnabled) {
-        const t = REMINDER_TIMES[selectedTimeIdx];
-        await scheduleDailyAuraReminder(t.hour, t.minute);
+        const [h, m] = reminderTime.split(':').map(Number);
+        await scheduleDailyAuraReminder(h, m);
+      } else {
+        await cancelDailyAuraReminder();
       }
       await updateProfile({
         selectedChime,
         soundEnabled,
         hapticsEnabled,
+        dailyReminderEnabled: reminderEnabled,
+        dailyReminderTime: reminderTime,
         onboardingCompleted: true,
       });
       router.replace('/(tabs)');
@@ -77,7 +81,7 @@ export default function RemindersSoundscapesScreen() {
             Gentle Reminders & Sanctuary Audio 🕊️
           </Text>
           <Text style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}>
-            Tap a chime to preview your completion soundscape.
+            Tap a chime to preview your completion soundscape and set your daily check-in.
           </Text>
         </View>
 
@@ -136,46 +140,26 @@ export default function RemindersSoundscapesScreen() {
             </View>
             <Switch value={reminderEnabled} onValueChange={setReminderEnabled} />
           </View>
-        </AuraCard>
 
-        {reminderEnabled && (
-          <View style={styles.section}>
-            <Text style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>
-              PREFERRED REMINDER WINDOW
-            </Text>
-            <View style={styles.timeList}>
-              {REMINDER_TIMES.map((t, idx) => {
-                const active = selectedTimeIdx === idx;
-                return (
-                  <Pressable
-                    key={t.label}
-                    onPress={() => setSelectedTimeIdx(idx)}
-                    style={[
-                      styles.timePill,
-                      {
-                        backgroundColor: active
-                          ? theme.colors.primary
-                          : theme.colors.surfaceContainer,
-                        borderColor: theme.colors.cardBorder,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.timeText,
-                        {
-                          color: active ? theme.colors.onPrimary : theme.colors.onSurface,
-                        },
-                      ]}
-                    >
-                      {t.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-        )}
+          {reminderEnabled && (
+            <Pressable
+              onPress={() => setTimePickerOpen(true)}
+              style={[styles.timeBtn, { backgroundColor: theme.colors.surfaceLow }]}
+            >
+              <View style={styles.bellRow}>
+                <Clock size={16} color={theme.colors.secondary} />
+                <Text
+                  style={[styles.timeLabel, { color: theme.colors.onSurfaceVariant }]}
+                >
+                  Daily Check-In Time
+                </Text>
+              </View>
+              <Text style={[styles.timeValue, { color: theme.colors.primary }]}>
+                {formatTime12h(reminderTime)}
+              </Text>
+            </Pressable>
+          )}
+        </AuraCard>
 
         <AuraButton
           label="Enter Sanctuary ✨"
@@ -183,6 +167,14 @@ export default function RemindersSoundscapesScreen() {
           loading={finishing}
         />
       </ScrollView>
+
+      <AuraTimePickerModal
+        visible={timePickerOpen}
+        initialTime={reminderTime}
+        title="Daily Check-In Time"
+        onConfirm={setReminderTime}
+        onClose={() => setTimePickerOpen(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -218,12 +210,15 @@ const styles = StyleSheet.create({
   bellRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   toggleLabel: { fontFamily: fontFamilies.medium, fontSize: 15 },
   divider: { height: 1, opacity: 0.08, backgroundColor: '#948e9d', marginVertical: 6 },
-  timeList: { gap: 8 },
-  timePill: {
-    paddingVertical: 13,
-    paddingHorizontal: 16,
-    borderRadius: 16,
-    borderWidth: 1,
+  timeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 14,
+    marginTop: 8,
   },
-  timeText: { fontFamily: fontFamilies.semibold, fontSize: 14 },
+  timeLabel: { fontFamily: fontFamilies.medium, fontSize: 13 },
+  timeValue: { fontFamily: fontFamilies.bold, fontSize: 15 },
 });

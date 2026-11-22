@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Check, Flame, Pencil } from 'lucide-react-native';
+import { Bell, Check, Flame, Pencil } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Animated, {
   useAnimatedStyle,
@@ -12,6 +12,7 @@ import { Habit } from '@/db/schema';
 import { useAuraTheme } from '@/theme/ThemeProvider';
 import { fontFamilies } from '@/theme/tokens';
 import { AuraCard } from '@/components/ui/AuraCard';
+import { formatTime12h } from '@/utils/notifications';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -34,9 +35,16 @@ export function HabitCard({
 }: HabitCardProps) {
   const { theme } = useAuraTheme();
   const scale = useSharedValue(1);
+  const rippleScale = useSharedValue(0.6);
+  const rippleOpacity = useSharedValue(0);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
+  }));
+
+  const rippleStyle = useAnimatedStyle(() => ({
+    opacity: rippleOpacity.value,
+    transform: [{ scale: rippleScale.value }],
   }));
 
   const handlePress = () => {
@@ -45,6 +53,12 @@ export function HabitCard({
         scale.set(withSpring(1, { damping: 12 }));
       })
     );
+    if (!completed) {
+      rippleScale.set(0.6);
+      rippleOpacity.set(0.55);
+      rippleScale.set(withTiming(1.9, { duration: 420 }));
+      rippleOpacity.set(withTiming(0, { duration: 420 }));
+    }
     if (hapticsEnabled) {
       Haptics.notificationAsync(
         completed
@@ -108,6 +122,14 @@ export function HabitCard({
               <Text style={[styles.metaText, { color: theme.colors.onSurfaceVariant }]}>
                 {habit.timeOfDay.toUpperCase()}
               </Text>
+              {habit.reminderTime && (
+                <View style={styles.reminderBadge}>
+                  <Bell size={10} color={theme.colors.primary} />
+                  <Text style={[styles.reminderBadgeText, { color: theme.colors.primary }]}>
+                    {formatTime12h(habit.reminderTime)}
+                  </Text>
+                </View>
+              )}
               {streak > 0 && (
                 <View
                   style={[
@@ -142,22 +164,32 @@ export function HabitCard({
             <Pencil size={15} color={theme.colors.outline} />
           </Pressable>
 
-          <View
-            style={[
-              styles.checkbox,
-              {
-                backgroundColor: checkboxBg,
-                borderColor: checkboxBorder,
-              },
-            ]}
-          >
-            {completed && (
-              <Check
-                size={15}
-                strokeWidth={3}
-                color={theme.isDark ? '#0D0D14' : '#1A1A1E'}
-              />
-            )}
+          <View style={styles.checkboxWrap}>
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.rippleRing,
+                rippleStyle,
+                { borderColor: theme.colors.sage },
+              ]}
+            />
+            <View
+              style={[
+                styles.checkbox,
+                {
+                  backgroundColor: checkboxBg,
+                  borderColor: checkboxBorder,
+                },
+              ]}
+            >
+              {completed && (
+                <Check
+                  size={15}
+                  strokeWidth={3}
+                  color={theme.isDark ? '#0D0D14' : '#1A1A1E'}
+                />
+              )}
+            </View>
           </View>
         </View>
       </AuraCard>
@@ -213,6 +245,28 @@ const styles = StyleSheet.create({
   },
   editBtn: {
     padding: 6,
+  },
+  reminderBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  reminderBadgeText: {
+    fontFamily: fontFamilies.semibold,
+    fontSize: 10,
+  },
+  checkboxWrap: {
+    width: 26,
+    height: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rippleRing: {
+    position: 'absolute',
+    width: 26,
+    height: 26,
+    borderRadius: 999,
+    borderWidth: 2,
   },
   checkbox: {
     width: 26,

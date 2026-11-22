@@ -26,6 +26,8 @@ export async function initDatabase(): Promise<void> {
       sound_enabled INTEGER NOT NULL DEFAULT 1,
       selected_chime TEXT NOT NULL DEFAULT 'celestial',
       haptics_enabled INTEGER NOT NULL DEFAULT 1,
+      daily_reminder_enabled INTEGER NOT NULL DEFAULT 1,
+      daily_reminder_time TEXT NOT NULL DEFAULT '20:00',
       onboarding_completed INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL
     );
@@ -53,6 +55,22 @@ export async function initDatabase(): Promise<void> {
     );
   `);
 
+  // Safe migration for existing installs
+  const cols = await db.getAllAsync<{ name: string }>(
+    'PRAGMA table_info(user_profile)'
+  );
+  const colNames = new Set(cols.map((c) => c.name));
+  if (!colNames.has('daily_reminder_enabled')) {
+    await db.execAsync(
+      'ALTER TABLE user_profile ADD COLUMN daily_reminder_enabled INTEGER NOT NULL DEFAULT 1'
+    );
+  }
+  if (!colNames.has('daily_reminder_time')) {
+    await db.execAsync(
+      "ALTER TABLE user_profile ADD COLUMN daily_reminder_time TEXT NOT NULL DEFAULT '20:00'"
+    );
+  }
+
   const existing = await db.getFirstAsync<{ id: string }>(
     'SELECT id FROM user_profile WHERE id = ?',
     ['default']
@@ -63,8 +81,9 @@ export async function initDatabase(): Promise<void> {
       `INSERT INTO user_profile (
         id, display_name, avatar_type, avatar_value, aura_vibe,
         theme_mode, sound_enabled, selected_chime, haptics_enabled,
+        daily_reminder_enabled, daily_reminder_time,
         onboarding_completed, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         'default',
         'Aura Explorer',
@@ -75,6 +94,8 @@ export async function initDatabase(): Promise<void> {
         1,
         'celestial',
         1,
+        1,
+        '20:00',
         0,
         new Date().toISOString(),
       ]
@@ -98,6 +119,11 @@ export async function fetchUserProfile(): Promise<UserProfile> {
     soundEnabled: Boolean(row.sound_enabled),
     selectedChime: row.selected_chime,
     hapticsEnabled: Boolean(row.haptics_enabled),
+    dailyReminderEnabled:
+      row.daily_reminder_enabled === undefined
+        ? true
+        : Boolean(row.daily_reminder_enabled),
+    dailyReminderTime: row.daily_reminder_time ?? '20:00',
     onboardingCompleted: Boolean(row.onboarding_completed),
     createdAt: row.created_at,
   };
@@ -116,6 +142,8 @@ export async function updateUserProfileDb(
     soundEnabled: 'sound_enabled',
     selectedChime: 'selected_chime',
     hapticsEnabled: 'haptics_enabled',
+    dailyReminderEnabled: 'daily_reminder_enabled',
+    dailyReminderTime: 'daily_reminder_time',
     onboardingCompleted: 'onboarding_completed',
   };
 

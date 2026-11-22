@@ -11,6 +11,7 @@ import {
   updateUserProfileDb,
 } from '@/db/database';
 import { Habit, HabitLog, UserProfile } from '@/db/schema';
+import { cancelHabitReminder, scheduleHabitReminder } from '@/utils/notifications';
 
 interface AuraState {
   isReady: boolean;
@@ -64,18 +65,25 @@ export const useAuraStore = create<AuraState>((set, get) => ({
       createdAt: new Date().toISOString(),
     };
     await insertHabitDb(newHabit);
+    await scheduleHabitReminder(newHabit);
     set({ habits: [...currentHabits, newHabit] });
   },
 
   updateHabit: async (id, patch) => {
     await updateHabitDb(id, patch);
-    set({
-      habits: get().habits.map((h) => (h.id === id ? { ...h, ...patch } : h)),
-    });
+    const nextHabits = get().habits.map((h) =>
+      h.id === id ? { ...h, ...patch } : h
+    );
+    const updated = nextHabits.find((h) => h.id === id);
+    if (updated) {
+      await scheduleHabitReminder(updated);
+    }
+    set({ habits: nextHabits });
   },
 
   archiveHabit: async (id) => {
     await archiveHabitDb(id);
+    await cancelHabitReminder(id);
     set({
       habits: get().habits.filter((h) => h.id !== id),
     });

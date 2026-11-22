@@ -17,6 +17,10 @@ import { AuraChip } from '@/components/ui/AuraChip';
 import { AuraButton } from '@/components/ui/AuraButton';
 import { HabitCard } from '@/components/home/HabitCard';
 import { CelebrationModal } from '@/components/home/CelebrationModal';
+import {
+  CHEER_UP_MESSAGES,
+  CheerUpToast,
+} from '@/components/home/CheerUpToast';
 import { AvatarView } from '@/components/profile/AvatarView';
 import { useAuraStore } from '@/store/useAuraStore';
 import { TimeOfDay } from '@/db/schema';
@@ -46,6 +50,7 @@ export default function HomeScreen() {
   const [selectedDate, setSelectedDate] = useState<string>(() => getLocalDateString());
   const [filter, setFilter] = useState<FilterOption>('all');
   const [showCelebration, setShowCelebration] = useState(false);
+  const [cheerMsg, setCheerMsg] = useState<string | null>(null);
 
   const scheduledForDate = useMemo(
     () => habits.filter((h) => isHabitScheduledForDate(h, selectedDate)),
@@ -71,6 +76,13 @@ export default function HomeScreen() {
     const nowCompleted = await toggleHabitForDate(habitId, selectedDate);
     if (nowCompleted) {
       const nextCompletedCount = completedCount + 1;
+      const msg =
+        CHEER_UP_MESSAGES[nextCompletedCount % CHEER_UP_MESSAGES.length];
+      setCheerMsg(msg);
+      setTimeout(() => {
+        setCheerMsg((prev) => (prev === msg ? null : prev));
+      }, 2200);
+
       if (scheduledForDate.length > 0 && nextCompletedCount === scheduledForDate.length) {
         playAuraChime('celebration', profile?.soundEnabled ?? true);
         triggerCelebrationHaptic(profile?.hapticsEnabled ?? true);
@@ -103,6 +115,7 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.colors.background }]}>
+      <CheerUpToast message={cheerMsg} />
       <ScrollView
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}

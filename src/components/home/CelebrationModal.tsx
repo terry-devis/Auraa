@@ -4,6 +4,8 @@ import { Sparkles } from 'lucide-react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
+  withRepeat,
+  withSequence,
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
@@ -25,20 +27,48 @@ export function CelebrationModal({
   const { theme } = useAuraTheme();
   const scale = useSharedValue(0.85);
   const opacity = useSharedValue(0);
+  const pulseScale = useSharedValue(1);
+  const pulseOpacity = useSharedValue(0.6);
 
   useEffect(() => {
     if (visible) {
       opacity.set(withTiming(1, { duration: 220 }));
       scale.set(withSpring(1, { damping: 14, stiffness: 160 }));
+      pulseScale.set(
+        withRepeat(
+          withSequence(
+            withTiming(1.45, { duration: 1100 }),
+            withTiming(1, { duration: 1100 })
+          ),
+          -1,
+          true
+        )
+      );
+      pulseOpacity.set(
+        withRepeat(
+          withSequence(
+            withTiming(0.12, { duration: 1100 }),
+            withTiming(0.55, { duration: 1100 })
+          ),
+          -1,
+          true
+        )
+      );
     } else {
       opacity.set(0);
       scale.set(0.85);
+      pulseScale.set(1);
     }
-  }, [visible, opacity, scale]);
+  }, [visible, opacity, scale, pulseScale, pulseOpacity]);
 
   const cardStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
     transform: [{ scale: scale.value }],
+  }));
+
+  const haloStyle = useAnimatedStyle(() => ({
+    opacity: pulseOpacity.value,
+    transform: [{ scale: pulseScale.value }],
   }));
 
   return (
@@ -57,17 +87,26 @@ export function CelebrationModal({
           ]}
         >
           <Pressable onPress={(e) => e.stopPropagation()} style={styles.inner}>
-            <View
-              style={[
-                styles.haloBadge,
-                {
-                  backgroundColor: theme.isDark
-                    ? 'rgba(110, 231, 183, 0.16)'
-                    : theme.colors.sage,
-                },
-              ]}
-            >
-              <Sparkles size={32} color={theme.isDark ? '#6EE7B7' : '#092011'} />
+            <View style={styles.badgeWrap}>
+              <Animated.View
+                style={[
+                  styles.pulseRing,
+                  haloStyle,
+                  { borderColor: theme.colors.sage },
+                ]}
+              />
+              <View
+                style={[
+                  styles.haloBadge,
+                  {
+                    backgroundColor: theme.isDark
+                      ? 'rgba(110, 231, 183, 0.16)'
+                      : theme.colors.sage,
+                  },
+                ]}
+              >
+                <Sparkles size={32} color={theme.isDark ? '#6EE7B7' : '#092011'} />
+              </View>
             </View>
 
             <Text style={[styles.eyebrow, { color: theme.colors.secondary }]}>
@@ -106,13 +145,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
+  badgeWrap: {
+    width: 84,
+    height: 84,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  pulseRing: {
+    position: 'absolute',
+    width: 72,
+    height: 72,
+    borderRadius: 999,
+    borderWidth: 2,
+  },
   haloBadge: {
     width: 68,
     height: 68,
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 4,
   },
   eyebrow: {
     fontFamily: fontFamilies.bold,

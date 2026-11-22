@@ -13,6 +13,8 @@ export interface UserProfile {
   soundEnabled: boolean;
   selectedChime: ChimeType;
   hapticsEnabled: boolean;
+  dailyReminderEnabled: boolean;
+  dailyReminderTime: string; // "HH:mm"
   onboardingCompleted: boolean;
   createdAt: string;
 }
