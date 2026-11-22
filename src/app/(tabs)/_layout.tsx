@@ -1,6 +1,6 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { Home, Calendar, User } from 'lucide-react-native';
+import { BarChart3, Home, User } from 'lucide-react-native';
 import { useAuraTheme } from '@/theme/ThemeProvider';
 import { fontFamilies } from '@/theme/tokens';
 
@@ -38,7 +38,7 @@ export default function TabsLayout() {
         name="insights"
         options={{
           title: 'Insights',
-          tabBarIcon: ({ color, size }) => <Calendar color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => <BarChart3 color={color} size={size} />,
         }}
       />
       <Tabs.Screen
