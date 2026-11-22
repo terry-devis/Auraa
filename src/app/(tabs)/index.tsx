@@ -267,7 +267,7 @@ export default function HomeScreen() {
                 key={habit.id}
                 habit={habit}
                 completed={completedIds.has(habit.id)}
-                streak={calculateHabitStreak(habit.id, logs)}
+                streak={calculateHabitStreak(habit, logs)}
                 hapticsEnabled={profile?.hapticsEnabled ?? true}
                 onToggle={() => handleToggleHabit(habit.id)}
                 onEdit={() => router.push({ pathname: '/add-habit', params: { id: habit.id } })}

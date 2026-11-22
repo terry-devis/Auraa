@@ -9,6 +9,7 @@ import { AuraCard } from '@/components/ui/AuraCard';
 import { AuraChip } from '@/components/ui/AuraChip';
 import {
   addDays,
+  calculateBestStreakAcrossHabits,
   calculateHabitStreak,
   getLocalDateString,
 } from '@/utils/streak';
@@ -37,14 +38,10 @@ export default function InsightsScreen() {
     return map;
   }, [logs]);
 
-  const bestStreak = useMemo(() => {
-    let max = 0;
-    for (const h of habits) {
-      const s = calculateHabitStreak(h.id, logs);
-      if (s > max) max = s;
-    }
-    return max;
-  }, [habits, logs]);
+  const bestStreak = useMemo(
+    () => calculateBestStreakAcrossHabits(habits, logs),
+    [habits, logs]
+  );
 
   const monthLabel = useMemo(
     () =>
@@ -311,7 +308,7 @@ export default function InsightsScreen() {
             ) : (
               habits.map((h) => {
                 const count = logs.filter((l) => l.habitId === h.id).length;
-                const streak = calculateHabitStreak(h.id, logs);
+                const streak = calculateHabitStreak(h, logs);
                 return (
                   <AuraCard key={h.id} padding="md">
                     <View style={styles.deepRow}>

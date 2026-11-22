@@ -23,7 +23,7 @@ import { useAuraStore } from '@/store/useAuraStore';
 import { AuraChip } from '@/components/ui/AuraChip';
 import { AuraButton } from '@/components/ui/AuraButton';
 import { AvatarView } from '@/components/profile/AvatarView';
-import { calculateHabitStreak } from '@/utils/streak';
+import { calculateBestStreakAcrossHabits } from '@/utils/streak';
 
 type CardFormat = '1:1' | '9:16';
 
@@ -73,14 +73,10 @@ export default function ShareStudioScreen() {
   const [badge, setBadge] = useState('CONSISTENCY');
   const [exporting, setExporting] = useState(false);
 
-  const bestStreak = useMemo(() => {
-    let max = 0;
-    for (const h of habits) {
-      const s = calculateHabitStreak(h.id, logs);
-      if (s > max) max = s;
-    }
-    return max;
-  }, [habits, logs]);
+  const bestStreak = useMemo(
+    () => calculateBestStreakAcrossHabits(habits, logs),
+    [habits, logs]
+  );
 
   const captureCard = async (): Promise<string | null> => {
     if (!shotRef.current?.capture) return null;

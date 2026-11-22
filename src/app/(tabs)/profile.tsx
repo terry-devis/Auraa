@@ -27,7 +27,7 @@ import {
   formatTime12h,
   scheduleDailyAuraReminder,
 } from '@/utils/notifications';
-import { calculateHabitStreak } from '@/utils/streak';
+import { calculateBestStreakAcrossHabits } from '@/utils/streak';
 
 const THEMES: { id: ThemePreference; label: string }[] = [
   { id: 'system', label: 'System' },
@@ -47,14 +47,10 @@ export default function ProfileScreen() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [timePickerOpen, setTimePickerOpen] = useState(false);
 
-  const bestStreak = useMemo(() => {
-    let max = 0;
-    for (const h of habits) {
-      const s = calculateHabitStreak(h.id, logs);
-      if (s > max) max = s;
-    }
-    return max;
-  }, [habits, logs]);
+  const bestStreak = useMemo(
+    () => calculateBestStreakAcrossHabits(habits, logs),
+    [habits, logs]
+  );
 
   const handleChimeChange = (chime: ChimeType) => {
     updateProfile({ selectedChime: chime });

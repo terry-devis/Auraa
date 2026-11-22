@@ -46,28 +46,102 @@ export function isHabitScheduledForDate(habit: Habit, dateStr: string): boolean 
   return habit.frequencyDays.includes(date.getDay());
 }
 
-export function calculateHabitStreak(habitId: string, logs: HabitLog[]): number {
+/**
+ * Frequency-aware current streak:
+ * - Unscheduled rest days do NOT break the streak.
+ * - If today is scheduled but not yet completed, streak is preserved until midnight
+ *   as long as the previous scheduled day was completed.
+ * - Any missed scheduled day breaks the streak.
+ */
+export function calculateHabitStreak(habit: Habit, logs: HabitLog[]): number {
   const completedSet = new Set(
-    logs.filter((l) => l.habitId === habitId).map((l) => l.completedDate)
+    logs.filter((l) => l.habitId === habit.id).map((l) => l.completedDate)
   );
-  if (completedSet.size === 0) return 0;
+  if (completedSet.size === 0 || habit.frequencyDays.length === 0) return 0;
 
   const today = new Date();
   const todayStr = getLocalDateString(today);
-  const yesterdayStr = getLocalDateString(addDays(today, -1));
 
-  let cursor = completedSet.has(todayStr)
-    ? today
-    : completedSet.has(yesterdayStr)
-      ? addDays(today, -1)
-      : null;
-
-  if (!cursor) return 0;
-
+  let cursor = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   let streak = 0;
-  while (completedSet.has(getLocalDateString(cursor))) {
+
+  // If today is not completed yet, start checking from yesterday
+  // (so an uncompleted today doesn't prematurely wipe out an active streak).
+  if (completedSet.has(todayStr)) {
     streak += 1;
     cursor = addDays(cursor, -1);
+  } else {
+    cursor = addDays(cursor, -1);
   }
+
+  for (let i = 0; i < 3650; i++) {
+    const dateStr = getLocalDateString(cursor);
+    const isScheduled = habit.frequencyDays.includes(cursor.getDay());
+    const isDone = completedSet.has(dateStr);
+
+    if (isDone) {
+      streak += 1;
+    } else if (isScheduled) {
+      break;
+    }
+
+    cursor = addDays(cursor, -1);
+  }
+
   return streak;
+}
+
+/**
+ * Frequency-aware all-time longest streak for a habit.
+ */
+export function calculateLongestHabitStreak(
+  habit: Habit,
+  logs: HabitLog[]
+): number {
+  const habitDates = logs
+    .filter((l) => l.habitId === habit.id)
+    .map((l) => l.completedDate)
+    .sort();
+
+  if (habitDates.length === 0 || habit.frequencyDays.length === 0) return 0;
+
+  const completedSet = new Set(habitDates);
+  const [sy, sm, sd] = habitDates[0].split('-').map(Number);
+  let cursor = new Date(sy, sm - 1, sd);
+
+  const now = new Date();
+  const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const todayStr = getLocalDateString(todayEnd);
+
+  let best = 0;
+  let current = 0;
+
+  while (cursor <= todayEnd) {
+    const dateStr = getLocalDateString(cursor);
+    const isScheduled = habit.frequencyDays.includes(cursor.getDay());
+    const isDone = completedSet.has(dateStr);
+
+    if (isDone) {
+      current += 1;
+      if (current > best) best = current;
+    } else if (isScheduled && dateStr !== todayStr) {
+      current = 0;
+    }
+
+    cursor = addDays(cursor, 1);
+  }
+
+  return best;
+}
+
+export function calculateBestStreakAcrossHabits(
+  habits: Habit[],
+  logs: HabitLog[]
+): number {
+  let max = 0;
+  for (const h of habits) {
+    const longest = calculateLongestHabitStreak(h, logs);
+    if (longest > max) max = longest;
+  }
+  return max;
 }
